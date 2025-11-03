@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   nightly-test-eval-text-models:
-    if: github.repository == 'sgl-project/sglang'
+    # if: github.repository == 'sgl-project/sglang'
     runs-on: 2-gpu-runner
     steps:
       - name: Checkout code
