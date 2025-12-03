@@ -48,6 +48,12 @@ from fastapi.responses import ORJSONResponse, Response, StreamingResponse
 
 from sglang.srt.disaggregation.utils import FAKE_BOOTSTRAP_HOST, DisaggregationMode
 from sglang.srt.entrypoints.engine import _launch_subprocesses
+from sglang.srt.entrypoints.ollama.protocol import (
+    OllamaChatRequest,
+    OllamaGenerateRequest,
+    OllamaShowRequest,
+)
+from sglang.srt.entrypoints.ollama.serving import OllamaServing
 from sglang.srt.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ClassifyRequest,
@@ -72,12 +78,6 @@ from sglang.srt.entrypoints.openai.serving_tokenize import (
     OpenAIServingDetokenize,
     OpenAIServingTokenize,
 )
-from sglang.srt.entrypoints.ollama.protocol import (
-    OllamaChatRequest,
-    OllamaGenerateRequest,
-    OllamaShowRequest,
-)
-from sglang.srt.entrypoints.ollama.serving import OllamaServing
 from sglang.srt.entrypoints.warmup import execute_warmups
 from sglang.srt.environ import envs
 from sglang.srt.function_call.function_call_parser import FunctionCallParser
@@ -264,9 +264,7 @@ async def lifespan(fast_api_app: FastAPI):
     )
 
     # Initialize Ollama-compatible serving handler
-    fast_api_app.state.ollama_serving = OllamaServing(
-        _global_state.tokenizer_manager
-    )
+    fast_api_app.state.ollama_serving = OllamaServing(_global_state.tokenizer_manager)
 
     # Launch tool server
     tool_server = None
@@ -1325,20 +1323,20 @@ async def v1_rerank_request(request: V1RerankReqInput, raw_request: Request):
 ##### Ollama-compatible API endpoints #####
 
 
-@app.get("/")
-@app.head("/")
+@app.get(os.environ.get("SGLANG_OLLAMA_ROOT_ROUTE", "/"))
+@app.head(os.environ.get("SGLANG_OLLAMA_ROOT_ROUTE", "/"))
 async def ollama_root():
     """Ollama-compatible root endpoint for health check."""
     return "Ollama is running"
 
 
-@app.post("/api/chat")
+@app.post(os.environ.get("SGLANG_OLLAMA_CHAT_ROUTE", "/api/chat"))
 async def ollama_chat(request: OllamaChatRequest, raw_request: Request):
     """Ollama-compatible chat endpoint."""
     return await raw_request.app.state.ollama_serving.handle_chat(request, raw_request)
 
 
-@app.post("/api/generate")
+@app.post(os.environ.get("SGLANG_OLLAMA_GENERATE_ROUTE", "/api/generate"))
 async def ollama_generate(request: OllamaGenerateRequest, raw_request: Request):
     """Ollama-compatible generate endpoint."""
     return await raw_request.app.state.ollama_serving.handle_generate(
@@ -1346,13 +1344,13 @@ async def ollama_generate(request: OllamaGenerateRequest, raw_request: Request):
     )
 
 
-@app.get("/api/tags")
+@app.get(os.environ.get("SGLANG_OLLAMA_TAGS_ROUTE", "/api/tags"))
 async def ollama_tags(raw_request: Request):
     """Ollama-compatible list models endpoint."""
     return raw_request.app.state.ollama_serving.get_tags()
 
 
-@app.post("/api/show")
+@app.post(os.environ.get("SGLANG_OLLAMA_SHOW_ROUTE", "/api/show"))
 async def ollama_show(request: OllamaShowRequest, raw_request: Request):
     """Ollama-compatible show model info endpoint."""
     return raw_request.app.state.ollama_serving.get_show(request.model)
