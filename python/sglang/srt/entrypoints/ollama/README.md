@@ -2,6 +2,11 @@
 
 Ollama API compatibility for SGLang, plus a Smart Router for intelligent routing between local and remote models.
 
+## Branches
+
+- `feature/ollama-api` - Ollama-compatible API only
+- `feature/ollama-smart-router` - Ollama API + Smart Router
+
 ## Features
 
 1. **Ollama-compatible API** - Use Ollama CLI/library with SGLang backend
@@ -15,7 +20,13 @@ Ollama API compatibility for SGLang, plus a Smart Router for intelligent routing
 
 ```bash
 ssh user@gpu-server
+
+# For Ollama API only:
 git clone -b feature/ollama-api https://github.com/alisonshao/sglang.git
+
+# For Ollama API + Smart Router:
+git clone -b feature/ollama-smart-router https://github.com/alisonshao/sglang.git
+
 cd sglang && pip install -e "python[all]"
 
 # Start with any HuggingFace model
