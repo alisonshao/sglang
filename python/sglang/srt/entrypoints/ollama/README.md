@@ -10,7 +10,7 @@ Ollama API compatibility for SGLang, plus a Smart Router for intelligent routing
 ## Features
 
 1. **Ollama-compatible API** - Use Ollama CLI/library with SGLang backend
-2. **Smart Router** - Route simple tasks locally, complex tasks to powerful remote models
+2. **Smart Router** - LLM-based routing between local and remote models
 
 ---
 
@@ -34,12 +34,6 @@ python -m sglang.launch_server \
     --model <YOUR_MODEL> \
     --port 30001 \
     --host 0.0.0.0
-
-# Example:
-python -m sglang.launch_server \
-    --model Qwen/Qwen2.5-1.5B-Instruct \
-    --port 30001 \
-    --host 0.0.0.0
 ```
 
 ### 2. Connect from Local Machine
@@ -48,7 +42,7 @@ python -m sglang.launch_server \
 # SSH tunnel if behind firewall
 ssh -L 30001:localhost:30001 user@gpu-server -N &
 
-# Use Ollama CLI with any model name
+# Use Ollama CLI
 OLLAMA_HOST=http://localhost:30001 ollama list
 OLLAMA_HOST=http://localhost:30001 ollama run "<MODEL_NAME>"
 ```
@@ -70,7 +64,29 @@ print(response['message']['content'])
 
 ## Smart Router
 
-Routes requests between local Ollama and remote SGLang based on task complexity.
+Intelligently routes requests between local Ollama and remote SGLang using an LLM judge.
+
+### How It Works
+
+```
+User Request
+     │
+     ▼
+┌─────────────────────┐
+│     LLM Judge       │  Classifies as SIMPLE or COMPLEX
+│  (local model)      │
+└─────────────────────┘
+     │
+     ▼
+┌─────────────────────┐
+│  SIMPLE → Local     │  Fast response from local Ollama
+│  COMPLEX → Remote   │  Powerful response from SGLang
+└─────────────────────┘
+```
+
+The LLM judge (running on local Ollama) analyzes each request and decides:
+- **SIMPLE**: Quick responses, greetings, factual questions, definitions, basic Q&A
+- **COMPLEX**: Deep reasoning, multi-step analysis, long explanations, creative writing
 
 ### Setup
 
@@ -94,50 +110,36 @@ python python/sglang/srt/entrypoints/ollama/smart_router.py
 
 ### Configuration
 
-**All models are configurable** - use whatever models fit your needs:
-
 ```python
 from sglang.srt.entrypoints.ollama.smart_router import SmartRouter
 
 router = SmartRouter(
-    # Local Ollama (fast, for simple tasks)
+    # Local Ollama
     local_host="http://localhost:11434",
-    local_model="llama3.2",  # or: mistral, phi3, gemma2, etc.
+    local_model="llama3.2",  # or any Ollama model
 
-    # Remote SGLang (powerful, for complex tasks)
+    # Remote SGLang
     remote_host="http://localhost:30001",
-    remote_model="Qwen/Qwen2.5-1.5B-Instruct",  # or: any HuggingFace model
+    remote_model="Qwen/Qwen2.5-1.5B-Instruct",  # or any HuggingFace model
 
-    # LLM Judge (for ambiguous cases)
-    judge_model="llama3.2",  # uses local model by default
-    use_llm_judge=True,
+    # LLM Judge (optional, defaults to local_model)
+    judge_model="llama3.2",
 )
 ```
-
-### Routing Logic
-
-**Stage 1: Rule-based (fast)**
-| Condition | Route | Confidence |
-|-----------|-------|------------|
-| Greetings ("hello", "hi") | Local | 95% |
-| Code keywords ("python", "debug") | Remote | 90% |
-| Math ("calculate", "solve") | Remote | 90% |
-| Long prompts (>500 chars) | Remote | 90% |
-
-**Stage 2: LLM Judge** (when confidence < 70%)
-- Asks local model: "Is this SIMPLE or COMPLEX?"
 
 ### Usage
 
 ```python
-# Auto-routing
+# Auto-routing via LLM judge
 response = router.chat("Hello!", verbose=True)
-# -> Routes to Local
+# [Router] LLM Judge: SIMPLE
+# [Router] -> Local Ollama | Model: llama3.2
 
-response = router.chat("Write quicksort in Python", verbose=True)
-# -> Routes to Remote
+response = router.chat("Explain quantum computing in detail", verbose=True)
+# [Router] LLM Judge: COMPLEX
+# [Router] -> Remote SGLang | Model: Qwen/Qwen2.5-1.5B-Instruct
 
-# Force routing
+# Force routing (skip LLM judge)
 response = router.chat("question", force_local=True)
 response = router.chat("question", force_remote=True)
 
@@ -152,4 +154,4 @@ for chunk in router.chat_stream("Tell me a story"):
 
 - **Ollama**: Simple CLI/API developers already know
 - **SGLang**: High-performance inference
-- **Smart Router**: Fast local for simple, powerful remote for complex
+- **Smart Router**: Intelligent routing - fast local for simple tasks, powerful remote for complex tasks

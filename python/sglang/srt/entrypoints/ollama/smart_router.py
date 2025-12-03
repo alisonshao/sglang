@@ -1,13 +1,9 @@
 """
 Smart Router: Automatically routes requests between local Ollama and remote SGLang.
 
-Routes complex tasks (code, reasoning, long prompts) to powerful remote models,
-and simple tasks to local models for faster response.
-
-Features:
-- Hardcoded rules for fast classification
-- LLM-based routing for ambiguous cases
-- Automatic fallback between backends
+Uses an LLM judge to classify tasks as simple or complex, then routes accordingly:
+- Simple tasks → Local Ollama (fast response)
+- Complex tasks → Remote SGLang (powerful model)
 
 Usage:
     from sglang.srt.entrypoints.ollama.smart_router import SmartRouter
@@ -19,21 +15,22 @@ Usage:
     response = router.chat("Hello!")
 """
 
-import re
 from typing import Optional
 
 import ollama
 
 
 class SmartRouter:
-    """Routes requests between local Ollama and remote SGLang based on task complexity."""
+    """Routes requests between local Ollama and remote SGLang using LLM-based classification."""
 
     # Classification prompt for LLM judge
-    CLASSIFICATION_PROMPT = """Classify this user request into one category. Reply with ONLY the category name.
+    CLASSIFICATION_PROMPT = """You are a task classifier. Classify the following user request into one of two categories.
 
 Categories:
-- SIMPLE: Greetings, small talk, simple questions, translations, definitions
-- COMPLEX: Code, math, analysis, reasoning, multi-step tasks, long explanations
+- SIMPLE: Quick responses, greetings, factual questions, definitions, translations, basic Q&A
+- COMPLEX: Tasks requiring deep reasoning, multi-step analysis, long explanations, creative writing, detailed research
+
+Reply with ONLY one word: either SIMPLE or COMPLEX.
 
 User request: "{prompt}"
 
@@ -47,8 +44,6 @@ Category:"""
         remote_model: str = "Qwen/Qwen2.5-1.5B-Instruct",
         judge_model: Optional[str] = None,
         judge_host: Optional[str] = None,
-        token_threshold: int = 500,
-        use_llm_judge: bool = True,
     ):
         """
         Initialize the smart router.
@@ -60,88 +55,16 @@ Category:"""
             remote_model: Model name for remote SGLang
             judge_model: Model for LLM-based classification (default: same as local_model)
             judge_host: Host for judge model (default: same as local_host)
-            token_threshold: Character count threshold for routing to remote
-            use_llm_judge: Whether to use LLM for ambiguous cases
         """
         self.local_client = ollama.Client(host=local_host)
         self.remote_client = ollama.Client(host=remote_host)
         self.local_model = local_model
         self.remote_model = remote_model
-        self.token_threshold = token_threshold
-        self.use_llm_judge = use_llm_judge
 
         # Judge model configuration
         self.judge_model = judge_model or local_model
         self.judge_host = judge_host or local_host
         self.judge_client = ollama.Client(host=self.judge_host)
-
-        # Keywords that indicate complex tasks (high confidence)
-        self.code_keywords = [
-            "code", "program", "function", "debug", "implement", "algorithm",
-            "script", "python", "javascript", "java", "c++", "rust", "golang",
-            "refactor", "optimize", "bug", "error", "exception", "compile"
-        ]
-        self.reasoning_keywords = [
-            "analyze", "reason", "explain why", "compare", "evaluate",
-            "critique", "pros and cons", "advantages", "disadvantages",
-            "trade-off", "implications", "consequences", "argue"
-        ]
-        self.math_keywords = [
-            "calculate", "solve", "equation", "formula", "proof", "theorem",
-            "integral", "derivative", "matrix", "vector", "probability"
-        ]
-
-        # Keywords that indicate simple tasks (high confidence)
-        self.simple_keywords = [
-            "hello", "hi", "hey", "thanks", "thank you", "bye", "goodbye",
-            "how are you", "what's up", "good morning", "good night",
-            "what is your name", "who are you"
-        ]
-
-    def _classify_with_rules(self, prompt: str) -> tuple[Optional[bool], str, float]:
-        """
-        Classify using hardcoded rules.
-
-        Returns:
-            Tuple of (use_remote, reason, confidence)
-            use_remote is None if uncertain
-        """
-        prompt_lower = prompt.lower().strip()
-
-        # High confidence: Simple greetings
-        if any(kw in prompt_lower for kw in self.simple_keywords):
-            return False, "Simple greeting/chat", 0.95
-
-        # High confidence: Long prompts
-        if len(prompt) > self.token_threshold:
-            return True, f"Long prompt (>{self.token_threshold} chars)", 0.9
-
-        # High confidence: Code-related tasks
-        if any(kw in prompt_lower for kw in self.code_keywords):
-            return True, "Code-related task", 0.9
-
-        # High confidence: Contains code blocks
-        if "```" in prompt or re.search(r"def |class |function |import |from ", prompt):
-            return True, "Contains code", 0.95
-
-        # High confidence: Reasoning/analysis tasks
-        if any(kw in prompt_lower for kw in self.reasoning_keywords):
-            return True, "Reasoning/analysis task", 0.85
-
-        # High confidence: Math/science
-        if any(kw in prompt_lower for kw in self.math_keywords):
-            return True, "Math/science task", 0.9
-
-        # Medium confidence: Multi-step instructions
-        if prompt.count("\n") > 3 or prompt.count(". ") > 5:
-            return True, "Multi-step task", 0.7
-
-        # Low confidence: Short simple question
-        if len(prompt) < 50 and "?" in prompt and prompt.count(" ") < 10:
-            return False, "Short simple question", 0.6
-
-        # Uncertain - needs LLM judge
-        return None, "Uncertain", 0.5
 
     def _classify_with_llm(self, prompt: str, verbose: bool = False) -> tuple[bool, str]:
         """
@@ -158,33 +81,27 @@ Category:"""
             response = self.judge_client.chat(
                 model=self.judge_model,
                 messages=[{"role": "user", "content": classification_prompt}],
-                options={"temperature": 0, "num_predict": 10}  # Deterministic, short response
+                options={"temperature": 0, "num_predict": 10}
             )
 
             result = response["message"]["content"].strip().upper()
 
             if verbose:
-                print(f"[Router] LLM Judge says: {result}")
+                print(f"[Router] LLM Judge: {result}")
 
             if "COMPLEX" in result:
-                return True, "LLM classified as complex"
+                return True, "Complex task"
             else:
-                return False, "LLM classified as simple"
+                return False, "Simple task"
 
         except Exception as e:
             if verbose:
                 print(f"[Router] LLM Judge failed: {e}, defaulting to local")
-            return False, "LLM judge failed, defaulting to simple"
+            return False, "Judge failed, defaulting to local"
 
-    def should_use_remote(
-        self, prompt: str, verbose: bool = False
-    ) -> tuple[bool, str]:
+    def should_use_remote(self, prompt: str, verbose: bool = False) -> tuple[bool, str]:
         """
         Determine if the prompt should be routed to remote SGLang.
-
-        Uses a two-stage approach:
-        1. Fast hardcoded rules for high-confidence cases
-        2. LLM classification for ambiguous cases
 
         Args:
             prompt: User's input prompt
@@ -193,26 +110,7 @@ Category:"""
         Returns:
             Tuple of (should_use_remote, reason)
         """
-        # Stage 1: Rule-based classification
-        use_remote, reason, confidence = self._classify_with_rules(prompt)
-
-        if verbose:
-            print(f"[Router] Rule-based: {reason} (confidence: {confidence:.0%})")
-
-        # High confidence decision
-        if use_remote is not None and confidence >= 0.7:
-            return use_remote, reason
-
-        # Stage 2: LLM classification for uncertain cases
-        if self.use_llm_judge and (use_remote is None or confidence < 0.7):
-            if verbose:
-                print("[Router] Using LLM judge for uncertain case...")
-            return self._classify_with_llm(prompt, verbose)
-
-        # Fallback to rule-based decision or default
-        if use_remote is not None:
-            return use_remote, reason
-        return False, "Default to local"
+        return self._classify_with_llm(prompt, verbose)
 
     def chat(
         self,
@@ -265,7 +163,7 @@ Category:"""
             location = "Local Ollama"
 
         if verbose:
-            print(f"[Router] -> {location} | {reason} | Model: {model}")
+            print(f"[Router] -> {location} | Model: {model}")
 
         try:
             response = client.chat(model=model, messages=messages)
@@ -333,7 +231,7 @@ Category:"""
             location = "Local Ollama"
 
         if verbose:
-            print(f"[Router] -> {location} | {reason} | Model: {model}")
+            print(f"[Router] -> {location} | Model: {model}")
 
         for chunk in client.chat(model=model, messages=messages, stream=True):
             yield chunk
@@ -345,17 +243,9 @@ def main():
     print("Smart Router: Local Ollama <-> Remote SGLang")
     print("=" * 60)
     print("\nRouting strategy:")
-    print("  1. Fast rule-based classification (keywords, length)")
-    print("  2. LLM judge for ambiguous cases")
-    print("\nRoutes to Remote SGLang:")
-    print("  - Code/programming tasks")
-    print("  - Reasoning/analysis")
-    print("  - Math/science")
-    print("  - Long/multi-step tasks")
-    print("\nRoutes to Local Ollama:")
-    print("  - Simple greetings")
-    print("  - Short questions")
-    print("  - Basic chat")
+    print("  LLM Judge classifies each request as SIMPLE or COMPLEX")
+    print("  - SIMPLE tasks -> Local Ollama (fast)")
+    print("  - COMPLEX tasks -> Remote SGLang (powerful)")
     print("\nType 'quit' to exit\n")
 
     router = SmartRouter(
@@ -363,7 +253,6 @@ def main():
         remote_host="http://localhost:30001",
         local_model="llama3.2",
         remote_model="Qwen/Qwen2.5-1.5B-Instruct",
-        use_llm_judge=True,
     )
 
     messages = []
