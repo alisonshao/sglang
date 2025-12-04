@@ -266,9 +266,18 @@ def main():
                 continue
 
             messages.append({"role": "user", "content": user_input})
-            result = router.chat(prompt=user_input, messages=messages, verbose=True)
-            print(f"\nAssistant: {result['content']}\n")
-            messages.append({"role": "assistant", "content": result["content"]})
+
+            # Use streaming for real-time output
+            print("\nAssistant: ", end="", flush=True)
+            full_response = ""
+            for chunk in router.chat_stream(prompt=user_input, messages=messages, verbose=True):
+                content = chunk.get("message", {}).get("content", "")
+                if content:
+                    print(content, end="", flush=True)
+                    full_response += content
+            print("\n")
+
+            messages.append({"role": "assistant", "content": full_response})
 
         except KeyboardInterrupt:
             print("\nGoodbye!")
