@@ -1036,7 +1036,7 @@ def check_pkg_version_at_least(pkg: str, min_version: str) -> bool:
 
 
 def kill_process_tree(parent_pid, include_parent: bool = True, skip_pid: int = None):
-    """Kill the process and all its child processes."""
+    """Kill the process and all its child processes, then wait for them to exit."""
     if parent_pid is None:
         parent_pid = os.getpid()
         include_parent = False
@@ -1068,6 +1068,19 @@ def kill_process_tree(parent_pid, include_parent: bool = True, skip_pid: int = N
             itself.send_signal(signal.SIGQUIT)
         except psutil.NoSuchProcess:
             pass
+
+    # Wait for all killed processes to actually exit. Without this, ports and
+    # shared memory may still be held when the next test class tries to launch
+    # a new server, causing "rpc_port not available" or exit -9 errors.
+    all_procs = children + ([itself] if include_parent else [])
+    _, alive = psutil.wait_procs(all_procs, timeout=10)
+    for p in alive:
+        try:
+            p.kill()
+        except psutil.NoSuchProcess:
+            pass
+    if alive:
+        psutil.wait_procs(alive, timeout=5)
 
 
 def monkey_patch_p2p_access_check():
