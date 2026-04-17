@@ -85,7 +85,7 @@ if [ "${SGLANG_CI_USE_VENV:-0}" = "1" ]; then
     # Allowlist guard: this is the set of CUDA toolkit versions this CI has
     # been validated against. Gates both the PyTorch index URL and FlashInfer
     # wheel availability. Update when adding a new toolkit.
-    VALID_CU_VERSIONS="cu126 cu128 cu129 cu130"
+    VALID_CU_VERSIONS="cu126 cu128 cu129 cu130 cu131"
     if ! echo "$VALID_CU_VERSIONS" | grep -qw "$CU_VERSION"; then
         echo "FATAL: Auto-detected CU_VERSION=${CU_VERSION} is not in the supported set: ${VALID_CU_VERSIONS}"
         echo "This likely means the container has an unexpected CUDA toolkit version."
