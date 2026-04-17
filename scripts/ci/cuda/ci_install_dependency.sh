@@ -500,12 +500,13 @@ fi
 # Download kernels from kernels community
 kernels download python || true
 kernels lock python || true
-mv python/kernels.lock ${HOME}/.cache/sglang || true
+mkdir -p "${HOME}/.cache/sglang"
+mv python/kernels.lock "${HOME}/.cache/sglang/" || true
 
 # Install human-eval. This script is sourced from ci_install_deepep.sh, so a
 # bare `cd human-eval` would leave the caller stuck in that directory for the
 # rest of its execution. The subshell keeps the cd local to the pip install.
-$PIP_CMD install "setuptools==70.0.0" $PIP_INSTALL_SUFFIX
+$PIP_CMD install "setuptools==70.0.0" "wheel" $PIP_INSTALL_SUFFIX
 [ -d human-eval ] || git clone https://github.com/merrymercy/human-eval.git
 (
     cd human-eval
