@@ -60,7 +60,20 @@ if [ "${SGLANG_CI_USE_VENV:-0}" = "1" ]; then
         echo "FATAL: SGLANG_CI_USE_VENV=1 but cannot detect CUDA toolkit version in container (nvcc missing, version.json missing)"
         exit 1
     fi
-    CU_VERSION="cu$(echo "$NVCC_VER" | tr -d '.')"
+    CU_VERSION_RAW="cu$(echo "$NVCC_VER" | tr -d '.')"
+
+    # Clamp to nearest available package index. PyTorch and FlashInfer only
+    # publish wheels for specific CUDA versions (cu126, cu128, cu129, cu130).
+    # Minor versions within the same major are forward-compatible.
+    case "$CU_VERSION_RAW" in
+        cu126|cu128|cu129) CU_VERSION="$CU_VERSION_RAW" ;;
+        cu130|cu131|cu132|cu133) CU_VERSION="cu130" ;;
+        cu12[0-5]) CU_VERSION="cu126" ;;
+        *) CU_VERSION="$CU_VERSION_RAW" ;;
+    esac
+    if [ "$CU_VERSION" != "$CU_VERSION_RAW" ]; then
+        echo "Clamped CU_VERSION: ${CU_VERSION_RAW} -> ${CU_VERSION} (nearest available package index)"
+    fi
 
     # Host driver must be >= container toolkit. Skip silently? No — log the
     # skip path so "check passed" vs "check skipped" is greppable in CI logs.
@@ -85,7 +98,7 @@ if [ "${SGLANG_CI_USE_VENV:-0}" = "1" ]; then
     # Allowlist guard: this is the set of CUDA toolkit versions this CI has
     # been validated against. Gates both the PyTorch index URL and FlashInfer
     # wheel availability. Update when adding a new toolkit.
-    VALID_CU_VERSIONS="cu126 cu128 cu129 cu130 cu131"
+    VALID_CU_VERSIONS="cu126 cu128 cu129 cu130"
     if ! echo "$VALID_CU_VERSIONS" | grep -qw "$CU_VERSION"; then
         echo "FATAL: Auto-detected CU_VERSION=${CU_VERSION} is not in the supported set: ${VALID_CU_VERSIONS}"
         echo "This likely means the container has an unexpected CUDA toolkit version."
