@@ -1,0 +1,95 @@
+name: Test CI Install (cu12/cu13 + venv)
+
+# Manual dispatch for testing ci_install_dependency.sh changes on dev runners.
+# Runs on alisonshao/sglang fork with temporary runners on ion-h200-7.
+#
+# Tests that previously failed with CUDA version mismatch:
+# - test_vision_openai_server_a.py (nvrtc: libnvrtc-builtins.so.13.0)
+# - test_nvfp4_gemm.py (torch/CUDA version mismatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      use_venv:
+        description: "Enable SGLANG_CI_USE_VENV=1"
+        required: true
+        type: choice
+        options:
+          - "0"
+          - "1"
+        default: "0"
+      runner_label:
+        description: "Runner label to target"
+        required: true
+        type: choice
+        options:
+          - "1-gpu-test-cu12"
+          - "1-gpu-test-cu13"
+          - "1-gpu-test"
+        default: "1-gpu-test-cu12"
+
+jobs:
+  test-install-and-run:
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 60
+    env:
+      SGLANG_CI_USE_VENV: ${{ inputs.use_venv }}
+      SGLANG_IS_IN_CI: "true"
+      # HF_TOKEN comes from the runner's .env file (set at container creation).
+      # Do NOT set HF_TOKEN here via secrets — on forks, secrets are empty and
+      # would override the runner's valid token with an empty string.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        timeout-minutes: 25
+        run: |
+          bash scripts/ci/cuda/ci_install_dependency.sh
+
+      - name: Sanity check — torch + CUDA alignment
+        run: |
+          echo "=== Environment ==="
+          echo "VIRTUAL_ENV=${VIRTUAL_ENV:-unset}"
+          echo "python3=$(command -v python3)"
+          echo "SGLANG_CI_USE_VENV=${SGLANG_CI_USE_VENV:-0}"
+          echo
+          echo "=== Package versions ==="
+          python3 -c "
+          import torch, torchvision, torchaudio
+          print(f'torch={torch.__version__} cuda={torch.version.cuda}')
+          print(f'torchvision={torchvision.__version__}')
+          print(f'torchaudio={torchaudio.__version__}')
+          assert torch.cuda.is_available(), 'CUDA not available!'
+          print(f'GPU: {torch.cuda.get_device_name(0)}')
+          "
+          echo
+          echo "=== sglang import ==="
+          python3 -c "import sglang; print('sglang import OK')"
+          echo
+          echo "=== nvrtc check (the libnvrtc-builtins.so.13.0 test) ==="
+          python3 -c "
+          import torch
+          # This triggers nvrtc load — the exact path that fails with cu13 mismatch
+          x = torch.randn(2, 2, device='cuda')
+          print('CUDA tensor OK:', x.shape)
+          "
+          echo
+          echo "=== No stale cu13 nvidia packages ==="
+          pip list 2>/dev/null | grep -iE "nvidia-cuda-nvrtc[^-]" && echo "WARNING: generic nvidia-cuda-nvrtc (cu13) found!" || echo "OK: no cu13 nvrtc"
+
+      - name: Test — test_nvfp4_gemm.py (previously failed with CUDA mismatch)
+        timeout-minutes: 15
+        run: |
+          cd test
+          python3 -m pytest registered/quant/test_nvfp4_gemm.py -v --timeout=600 2>&1 || true
+
+      - name: Test — test_vision_openai_server_a.py (previously failed with nvrtc)
+        timeout-minutes: 20
+        run: |
+          cd test
+          python3 registered/vlm/test_vision_openai_server_a.py 2>&1 || true
+
+      - name: Cleanup venv
+        if: always()
+        run: bash scripts/ci/cuda/ci_cleanup_venv.sh
