@@ -82,13 +82,13 @@ jobs:
         timeout-minutes: 15
         run: |
           cd test
-          python3 -m pytest registered/quant/test_nvfp4_gemm.py -v --timeout=600 2>&1 || true
+          python3 registered/quant/test_nvfp4_gemm.py
 
       - name: Test — test_vision_openai_server_a.py (previously failed with nvrtc)
         timeout-minutes: 20
         run: |
           cd test
-          python3 registered/vlm/test_vision_openai_server_a.py 2>&1 || true
+          python3 registered/vlm/test_vision_openai_server_a.py
 
       - name: Cleanup venv
         if: always()
