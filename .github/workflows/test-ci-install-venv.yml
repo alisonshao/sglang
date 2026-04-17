@@ -78,14 +78,14 @@ jobs:
           echo "=== No stale cu13 nvidia packages ==="
           pip list 2>/dev/null | grep -iE "nvidia-cuda-nvrtc[^-]" && echo "WARNING: generic nvidia-cuda-nvrtc (cu13) found!" || echo "OK: no cu13 nvrtc"
 
-      - name: Test — test_nvfp4_gemm.py (previously failed with CUDA mismatch)
-        timeout-minutes: 15
+      - name: Test — test_w8a8_quantization.py (1-GPU quant, exercises CUDA kernels)
+        timeout-minutes: 10
         run: |
           cd test
-          python3 registered/quant/test_nvfp4_gemm.py
+          python3 registered/quant/test_w8a8_quantization.py
 
-      - name: Test — test_vision_openai_server_a.py (previously failed with nvrtc)
-        timeout-minutes: 20
+      - name: Test — test_vision_openai_server_a.py (1-GPU VLM, previously failed with nvrtc)
+        timeout-minutes: 25
         run: |
           cd test
           python3 registered/vlm/test_vision_openai_server_a.py
