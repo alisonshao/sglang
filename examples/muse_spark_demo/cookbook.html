@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DemoLM-8B — SGLang Cookbook Demo</title>
+<style>
+  :root{
+    --orange:#c1560d;
+    --orange-light:#fff3e8;
+    --orange-border:#f0c9a6;
+    --ink:#1a1a1a;
+    --muted:#6b6b6b;
+    --muted2:#8a8a8a;
+    --card-border:#e3e3e3;
+    --card-bg:#fafafa;
+    --code-bg:#fbfbfb;
+    --radius:10px;
+    --max:1080px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.5}
+  a{color:var(--orange);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .topbar{border-bottom:1px solid #e8e8e8;background:#fff;position:sticky;top:0;z-index:10}
+  .topbar-inner{max-width:var(--max);margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .brand sgl{font-weight:800;color:var(--orange);font-size:22px;letter-spacing:.2px}
+  .brand strong{font-weight:800;font-size:22px;color:var(--orange)}
+  .brand em{font-style:normal;font-weight:700;font-size:16px;margin-left:4px}
+  .top-note{font-size:12px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 20px 40px}
+  .breadcrumb{padding:22px 0 8px;font-size:13px;color:var(--orange)}
+  .breadcrumb a{color:var(--orange)}
+  .breadcrumb span{margin:0 6px;color:var(--muted2)}
+  h1{margin:0;font-size:34px;line-height:1.1;letter-spacing:-.5px}
+  .subtitle{margin:6px 0 16px;color:var(--muted);font-size:14px}
+  .dummy{border:1px solid var(--orange-border);background:var(--orange-light);border-radius:var(--radius);padding:10px 14px;display:flex;gap:22px;align-items:center;font-size:13px;margin:10px 0 18px}
+  .dummy b{color:var(--orange);letter-spacing:.5px;font-size:12px;white-space:nowrap}
+  .cards{display:grid;grid-template-columns: 1.1fr .6fr .55fr 1.4fr;gap:12px;margin-bottom:18px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.cards{grid-template-columns:1fr}}
+  .card{border:1px solid var(--card-border);background:#fbfaf8;border-radius:var(--radius);padding:10px 14px}
+  .card label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px}
+  .card strong{font-size:14px;font-weight:700}
+  .panel{border:1px solid var(--card-border);border-radius:var(--radius);overflow:hidden;background:#fff;margin-bottom:14px}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:#fcfcfc;border-bottom:1px solid var(--card-border);font-size:13px;font-weight:600}
+  .panel-head span{color:var(--orange);font-weight:400;font-size:12px}
+  .panel pre{margin:0;padding:14px 16px;background:var(--code-bg);overflow:auto;font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;color:#1f1f1f}
+  .panel pre .c{color:#8a8a8a}
+  .section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:22px 0 8px}
+  .section-head h2{margin:0;font-size:15px;font-weight:700}
+  .section-head .meta{color:var(--orange);font-size:12px;font-weight:500}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+  .table-wrap{border:1px solid var(--card-border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px}
+  thead th{text-align:left;font-weight:600;background:#fdfbf7;border-bottom:2px solid var(--orange);padding:9px 10px;white-space:nowrap;font-size:12px}
+  tbody td{padding:8px 10px;border-bottom:1px solid #f0f0f0}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:#fcfcfc}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 20px}
+  @media(max-width:860px){.charts{grid-template-columns:1fr}}
+  .chart-card{border:1px solid var(--card-border);border-radius:var(--radius);padding:10px 12px;background:#fff}
+  .chart-card h3{margin:0 0 6px;font-size:12px;font-weight:700;color:#222}
+  .chart-card p{margin:0 0 6px;font-size:11px;color:var(--muted)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;margin:6px 0 0;color:#333}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  .footnotes{margin-top:18px;color:var(--muted);font-size:12px;line-height:1.6;border-top:1px solid #f0f0f0;padding-top:12px}
+  .footnotes p{margin:2px 0}
+  .banner2{margin-top:10px;border:1px dashed #e6c9a8;background:#fffaf3;border-radius:8px;padding:8px 12px;font-size:11px;color:#7a5a2e}
+  code{font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><strong>SGLang</strong> <em>Cookbook</em></div>
+    <div class="top-note">Demo material / not a live page</div>
+  </div>
+</div>
+<div class="wrap">
+  <div class="breadcrumb"><a href="#">Cookbook</a> <span>/</span> <a href="#">Autoregressive Models</a> <span>/</span> <a href="#">Demo</a></div>
+  <h1>DemoLM-8B</h1>
+  <div class="subtitle" id="subtitle">Illustrative deployment and benchmark commands</div>
+
+  <div class="dummy" role="note" aria-label="Dummy data notice">
+    <b>DUMMY DATA</b>
+    <span>Fictional model. Synthetic metrics. Commands have not been executed.</span>
+  </div>
+
+  <div class="cards">
+    <div class="card"><label>Hardware</label><strong>1 x H100 80GB</strong></div>
+    <div class="card"><label>Precision</label><strong>BF16</strong></div>
+    <div class="card"><label>Parallelism</label><strong>TP = 1</strong></div>
+    <div class="card"><label>Workload</label><strong>3 scenarios / 4 concurrency levels</strong></div>
+  </div>
+
+  <!-- Launch command -->
+  <div class="panel">
+    <div class="panel-head"><div>Launch command &nbsp;/&nbsp; Shell</div><span>Not Verified</span></div>
+    <pre><span class="c"># ILLUSTRATIVE ONLY: this fictional checkpoint does not exist.</span>
+sglang serve \
+  --model-path /models/demo/DemoLM-8B \
+  --served-model-name DemoLM-8B \
+  --dtype bfloat16 \
+  --tp 1 \
+  --context-length 32768 \
+  --mem-fraction-static 0.80 \
+  --host 127.0.0.1 \
+  --port 30000</pre>
+  </div>
+
+  <!-- Benchmark sweep -->
+  <div class="panel">
+    <div class="panel-head"><div>Benchmark sweep &nbsp;/&nbsp; Shell</div><span>Not Verified</span></div>
+    <pre><span class="c"># DUMMY ONLY: each row is SCENARIO INPUT_TOKENS OUTPUT_TOKENS.</span>
+while read -r scenario isl osl; do
+  for c in 1 8 32 128; do
+    python -m sglang.benchmark.serving \
+      --backend sglang --host 127.0.0.1 --port 30000 \
+      --model /models/demo/DemoLM-8B --served-model-name DemoLM-8B \
+      --dataset-name random --random-input-len "$isl" \
+      --random-output-len "$osl" --random-range-ratio 1 \
+      --num-prompts 1024 --max-concurrency "$c" \
+      --request-rate inf --seed 42
+  done
+done &lt;&lt;'CASES'
+short-chat 512 128
+long-input 8192 256
+long-output 1024 2048
+CASES</pre>
+  </div>
+
+  <div class="banner2"><b>DUMMY DATA · Fictional model:</b> dense 8B parameters, text-only, 32,768-token context, BF16. Model card and license: not applicable (demo fixture). SGLang build: not measured. Use for documentation and UI validation only. Do not download weights or run GPU inference.</div>
+
+  <!-- Tables -->
+  <div class="section-head"><h2>1. Short chat</h2><div class="meta">Input 512 / Output 128 tokens</div></div>
+  <div class="table-wrap">
+    <table aria-label="Short chat benchmark">
+      <thead><tr><th>Concurrency</th><th>Total tok/s/GPU</th><th>Output tok/s</th><th>TTFT P50 (ms)</th><th>TPOT P50 (ms)</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>400</td><td>80</td><td>30</td><td>12.50</td></tr>
+        <tr><td>8</td><td>2,400</td><td>480</td><td>50</td><td>16.67</td></tr>
+        <tr><td>32</td><td>6,400</td><td>1,280</td><td>95</td><td>25.00</td></tr>
+        <tr><td>128</td><td>9,600</td><td>1,920</td><td>260</td><td>66.67</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-head"><h2>2. Long input / document QA</h2><div class="meta">Input 8,192 / Output 256 tokens</div></div>
+  <div class="table-wrap">
+    <table aria-label="Long input benchmark">
+      <thead><tr><th>Concurrency</th><th>Total tok/s/GPU</th><th>Output tok/s</th><th>TTFT P50 (ms)</th><th>TPOT P50 (ms)</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>2,310</td><td>70</td><td>180</td><td>14.29</td></tr>
+        <tr><td>8</td><td>13,200</td><td>400</td><td>300</td><td>20.00</td></tr>
+        <tr><td>32</td><td>33,000</td><td>1,000</td><td>720</td><td>32.00</td></tr>
+        <tr><td>128</td><td>46,200</td><td>1,400</td><td>2400</td><td>91.43</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-head"><h2>3. Long output / generation</h2><div class="meta">Input 1,024 / Output 2,048 tokens</div></div>
+  <div class="table-wrap">
+    <table aria-label="Long output benchmark">
+      <thead><tr><th>Concurrency</th><th>Total tok/s/GPU</th><th>Output tok/s</th><th>TTFT P50 (ms)</th><th>TPOT P50 (ms)</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>135</td><td>90</td><td>45</td><td>11.11</td></tr>
+        <tr><td>8</td><td>840</td><td>560</td><td>70</td><td>14.29</td></tr>
+        <tr><td>32</td><td>2,400</td><td>1,600</td><td>150</td><td>20.00</td></tr>
+        <tr><td>128</td><td>3,600</td><td>2,400</td><td>420</td><td>53.33</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Charts -->
+  <div class="section-head"><h2>Synthetic measurements — charts</h2><div class="meta">Inline SVG · vs concurrency (1 / 8 / 32 / 128)</div></div>
+
+  <div class="charts">
+    <!-- Total tok/s/GPU -->
+    <div class="chart-card">
+      <h3>Total tok/s/GPU</h3>
+      <p>Higher is better · synthetic</p>
+      <svg viewBox="0 0 480 200" width="100%" height="180" role="img" aria-label="Total tok/s per GPU vs concurrency">
+        <!-- grid -->
+        <line x1="45" y1="20" x2="45" y2="150" stroke="#e8e8e8"/><line x1="45" y1="150" x2="460" y2="150" stroke="#e8e8e8"/>
+        <line x1="45" y1="117" x2="460" y2="117" stroke="#f0f0f0"/><line x1="45" y1="84" x2="460" y2="84" stroke="#f0f0f0"/><line x1="45" y1="51" x2="460" y2="51" stroke="#f0f0f0"/>
+        <!-- y labels -->
+        <text x="0" y="155" font-size="9" fill="#8a8a8a">0</text><text x="0" y="121" font-size="9" fill="#8a8a8a">15k</text><text x="0" y="88" font-size="9" fill="#8a8a8a">30k</text><text x="0" y="55" font-size="9" fill="#8a8a8a">45k</text>
+        <!-- x labels -->
+        <text x="58" y="168" font-size="9" fill="#6b6b6b">1</text><text x="170" y="168" font-size="9" fill="#6b6b6b">8</text><text x="288" y="168" font-size="9" fill="#6b6b6b">32</text><text x="410" y="168" font-size="9" fill="#6b6b6b">128</text>
+        <!-- x title -->
+        <text x="220" y="183" font-size="9" fill="#8a8a8a">Concurrency</text>
+        <!-- short-chat: 400,2400,6400,9600 -->
+        <polyline fill="none" stroke="#c1560d" stroke-width="2" points="62,148.96 182,143.76 306,132.64 430,118.88"/>
+        <circle cx="62" cy="148.96" r="3" fill="#c1560d"/><circle cx="182" cy="143.76" r="3" fill="#c1560d"/><circle cx="306" cy="132.64" r="3" fill="#c1560d"/><circle cx="430" cy="118.88" r="3" fill="#c1560d"/>
+        <!-- long-input: 2310,13200,33000,46200 -->
+        <polyline fill="none" stroke="#2a7ab5" stroke-width="2" points="62,143.99 182,115.68 306,64.2 430,29.84"/>
+        <circle cx="62" cy="143.99" r="3" fill="#2a7ab5"/><circle cx="182" cy="115.68" r="3" fill="#2a7ab5"/><circle cx="306" cy="64.2" r="3" fill="#2a7ab5"/><circle cx="430" cy="29.84" r="3" fill="#2a7ab5"/>
+        <!-- long-output: 135,840,2400,3600 -->
+        <polyline fill="none" stroke="#2e9d6a" stroke-width="2" points="62,149.65 182,147.81 306,143.76 430,140.56"/>
+        <circle cx="62" cy="149.65" r="3" fill="#2e9d6a"/><circle cx="182" cy="147.81" r="3" fill="#2e9d6a"/><circle cx="306" cy="143.76" r="3" fill="#2e9d6a"/><circle cx="430" cy="140.56" r="3" fill="#2e9d6a"/>
+      </svg>
+      <div class="legend"><span><i style="background:#c1560d"></i>short-chat</span><span><i style="background:#2a7ab5"></i>long-input</span><span><i style="background:#2e9d6a"></i>long-output</span></div>
+    </div>
+
+    <!-- Output tok/s -->
+    <div class="chart-card">
+      <h3>Output tok/s</h3>
+      <p>Higher is better · synthetic</p>
+      <svg viewBox="0 0 480 200" width="100%" height="180" role="img" aria-label="Output tok/s vs concurrency">
+        <line x1="45" y1="20" x2="45" y2="150" stroke="#e8e8e8"/><line x1="45" y1="150" x2="460" y2="150" stroke="#e8e8e8"/>
+        <line x1="45" y1="117" x2="460" y2="117" stroke="#f0f0f0"/><line x1="45" y1="84" x2="460" y2="84" stroke="#f0f0f0"/><line x1="45" y1="51" x2="460" y2="51" stroke="#f0f0f0"/>
+        <text x="0" y="155" font-size="9" fill="#8a8a8a">0</text><text x="0" y="121" font-size="9" fill="#8a8a8a">800</text><text x="0" y="88" font-size="9" fill="#8a8a8a">1,600</text><text x="0" y="55" font-size="9" fill="#8a8a8a">2,400</text>
+        <text x="58" y="168" font-size="9" fill="#6b6b6b">1</text><text x="170" y="168" font-size="9" fill="#6b6b6b">8</text><text x="288" y="168" font-size="9" fill="#6b6b6b">32</text><text x="410" y="168" font-size="9" fill="#6b6b6b">128</text>
+        <text x="220" y="183" font-size="9" fill="#8a8a8a">Concurrency</text>
+        <!-- short: 80,480,1280,1920 -->
+        <polyline fill="none" stroke="#c1560d" stroke-width="2" points="62,145.67 182,124 306,80.53 430,46"/>
+        <circle cx="62" cy="145.67" r="3" fill="#c1560d"/><circle cx="182" cy="124" r="3" fill="#c1560d"/><circle cx="306" cy="80.53" r="3" fill="#c1560d"/><circle cx="430" cy="46" r="3" fill="#c1560d"/>
+        <!-- long-input: 70,400,1000,1400 -->
+        <polyline fill="none" stroke="#2a7ab5" stroke-width="2" points="62,146.21 182,128.33 306,95.83 430,74.17"/>
+        <circle cx="62" cy="146.21" r="3" fill="#2a7ab5"/><circle cx="182" cy="128.33" r="3" fill="#2a7ab5"/><circle cx="306" cy="95.83" r="3" fill="#2a7ab5"/><circle cx="430" cy="74.17" r="3" fill="#2a7ab5"/>
+        <!-- long-output: 90,560,1600,2400 -->
+        <polyline fill="none" stroke="#2e9d6a" stroke-width="2" points="62,145.12 182,119.67 306,63.33 430,20"/>
+        <circle cx="62" cy="145.12" r="3" fill="#2e9d6a"/><circle cx="182" cy="119.67" r="3" fill="#2e9d6a"/><circle cx="306" cy="63.33" r="3" fill="#2e9d6a"/><circle cx="430" cy="20" r="3" fill="#2e9d6a"/>
+      </svg>
+      <div class="legend"><span><i style="background:#c1560d"></i>short-chat</span><span><i style="background:#2a7ab5"></i>long-input</span><span><i style="background:#2e9d6a"></i>long-output</span></div>
+    </div>
+
+    <!-- TTFT -->
+    <div class="chart-card">
+      <h3>TTFT P50 (ms)</h3>
+      <p>Lower is better · synthetic</p>
+      <svg viewBox="0 0 480 200" width="100%" height="180" role="img" aria-label="TTFT P50 vs concurrency">
+        <line x1="45" y1="20" x2="45" y2="150" stroke="#e8e8e8"/><line x1="45" y1="150" x2="460" y2="150" stroke="#e8e8e8"/>
+        <line x1="45" y1="117" x2="460" y2="117" stroke="#f0f0f0"/><line x1="45" y1="84" x2="460" y2="84" stroke="#f0f0f0"/><line x1="45" y1="51" x2="460" y2="51" stroke="#f0f0f0"/>
+        <text x="0" y="155" font-size="9" fill="#8a8a8a">0</text><text x="0" y="121" font-size="9" fill="#8a8a8a">800</text><text x="0" y="88" font-size="9" fill="#8a8a8a">1,600</text><text x="0" y="55" font-size="9" fill="#8a8a8a">2,400</text>
+        <text x="58" y="168" font-size="9" fill="#6b6b6b">1</text><text x="170" y="168" font-size="9" fill="#6b6b6b">8</text><text x="288" y="168" font-size="9" fill="#6b6b6b">32</text><text x="410" y="168" font-size="9" fill="#6b6b6b">128</text>
+        <text x="220" y="183" font-size="9" fill="#8a8a8a">Concurrency</text>
+        <!-- short 30,50,95,260 -->
+        <polyline fill="none" stroke="#c1560d" stroke-width="2" points="62,148.38 182,147.29 306,144.85 430,135.92"/>
+        <circle cx="62" cy="148.38" r="3" fill="#c1560d"/><circle cx="182" cy="147.29" r="3" fill="#c1560d"/><circle cx="306" cy="144.85" r="3" fill="#c1560d"/><circle cx="430" cy="135.92" r="3" fill="#c1560d"/>
+        <!-- long-input 180,300,720,2400 -->
+        <polyline fill="none" stroke="#2a7ab5" stroke-width="2" points="62,140.25 182,133.75 306,111 430,20"/>
+        <circle cx="62" cy="140.25" r="3" fill="#2a7ab5"/><circle cx="182" cy="133.75" r="3" fill="#2a7ab5"/><circle cx="306" cy="111" r="3" fill="#2a7ab5"/><circle cx="430" cy="20" r="3" fill="#2a7ab5"/>
+        <!-- long-output 45,70,150,420 -->
+        <polyline fill="none" stroke="#2e9d6a" stroke-width="2" points="62,147.56 182,146.21 306,141.88 430,127.25"/>
+        <circle cx="62" cy="147.56" r="3" fill="#2e9d6a"/><circle cx="182" cy="146.21" r="3" fill="#2e9d6a"/><circle cx="306" cy="141.88" r="3" fill="#2e9d6a"/><circle cx="430" cy="127.25" r="3" fill="#2e9d6a"/>
+      </svg>
+      <div class="legend"><span><i style="background:#c1560d"></i>short-chat</span><span><i style="background:#2a7ab5"></i>long-input</span><span><i style="background:#2e9d6a"></i>long-output</span></div>
+    </div>
+
+    <!-- TPOT -->
+    <div class="chart-card">
+      <h3>TPOT P50 (ms)</h3>
+      <p>Lower is better · synthetic</p>
+      <svg viewBox="0 0 480 200" width="100%" height="180" role="img" aria-label="TPOT P50 vs concurrency">
+        <line x1="45" y1="20" x2="45" y2="150" stroke="#e8e8e8"/><line x1="45" y1="150" x2="460" y2="150" stroke="#e8e8e8"/>
+        <line x1="45" y1="117" x2="460" y2="117" stroke="#f0f0f0"/><line x1="45" y1="84" x2="460" y2="84" stroke="#f0f0f0"/><line x1="45" y1="51" x2="460" y2="51" stroke="#f0f0f0"/>
+        <text x="0" y="155" font-size="9" fill="#8a8a8a">0</text><text x="0" y="121" font-size="9" fill="#8a8a8a">30</text><text x="0" y="88" font-size="9" fill="#8a8a8a">60</text><text x="0" y="55" font-size="9" fill="#8a8a8a">90</text>
+        <text x="58" y="168" font-size="9" fill="#6b6b6b">1</text><text x="170" y="168" font-size="9" fill="#6b6b6b">8</text><text x="288" y="168" font-size="9" fill="#6b6b6b">32</text><text x="410" y="168" font-size="9" fill="#6b6b6b">128</text>
+        <text x="220" y="183" font-size="9" fill="#8a8a8a">Concurrency</text>
+        <!-- short 12.5,16.67,25,66.67 -->
+        <polyline fill="none" stroke="#c1560d" stroke-width="2" points="62,131.94 182,125.92 306,113.89 430,53.71"/>
+        <circle cx="62" cy="131.94" r="3" fill="#c1560d"/><circle cx="182" cy="125.92" r="3" fill="#c1560d"/><circle cx="306" cy="113.89" r="3" fill="#c1560d"/><circle cx="430" cy="53.71" r="3" fill="#c1560d"/>
+        <!-- long-input 14.29,20,32,91.43 -->
+        <polyline fill="none" stroke="#2a7ab5" stroke-width="2" points="62,129.36 182,121.11 306,103.78 430,20"/>
+        <!-- add circles for long-input -->
+        <circle cx="62" cy="129.36" r="3" fill="#2a7ab5"/><circle cx="182" cy="121.11" r="3" fill="#2a7ab5"/><circle cx="306" cy="103.78" r="3" fill="#2a7ab5"/><circle cx="430" cy="20" r="3" fill="#2a7ab5"/>
+        <!-- long-output 11.11,14.29,20,53.33 -->
+        <polyline fill="none" stroke="#2e9d6a" stroke-width="2" points="62,133.96 182,129.36 306,121.11 430,72.85"/>
+        <circle cx="62" cy="133.96" r="3" fill="#2e9d6a"/><circle cx="182" cy="129.36" r="3" fill="#2e9d6a"/><circle cx="306" cy="121.11" r="3" fill="#2e9d6a"/><circle cx="430" cy="72.85" r="3" fill="#2e9d6a"/>
+      </svg>
+      <div class="legend"><span><i style="background:#c1560d"></i>short-chat</span><span><i style="background:#2a7ab5"></i>long-input</span><span><i style="background:#2e9d6a"></i>long-output</span></div>
+    </div>
+  </div>
+
+  <div class="footnotes">
+    <p>All scenarios: random dataset, 1,024 requests/point, request rate = inf, seed = 42, length ratio = 1.</p>
+    <p>Total tok/s/GPU = output tok/s × (input length + output length) / output length / GPU count.</p>
+    <p>All values are synthetic. No accurate result, measured software version, or deployment verification.</p>
+    <p>Fictional specification: dense 8B parameters, text-only, 32,768-token context, BF16.</p>
+    <p>Model card and license: not applicable (demo fixture). SGLang build: not measured.</p>
+    <p>Use for documentation and UI validation only. Do not download weights or run GPU inference.</p>
+  </div>
+</div>
+</body>
+</html>
